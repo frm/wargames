@@ -142,3 +142,138 @@ this will search for any set of characters in the `/etc/natas_webpass/natas11`
 file and ignore the rest of the command.
 
 the password will be there in plaintext.
+
+## natas11
+
+inspecting the source code of the php script, we can see that it encrypts the
+cookie. to encrypt it, it encodes a php array into json, xor's with a secret key
+that we don't have access to and then encodes it into base64.
+
+the cookie has a `showpassword` value that we need to change. the challenge here
+is to get the key that allows us to reencrypt the cookie with the intented
+values.
+
+xor has an interesting property: xor'ing something twice with the same key will
+yield the original value. or, in math terms, `^` being the xor operation:
+
+```
+a ^ b ^ a = b
+```
+
+in our php script we then have the following:
+
+```bash
+# defaultData is array("showpassword"=>"no", "bgcolor"=>"#ffffff")
+# BE is the base64_encode function
+# X is the xor_encrypt function
+# J is the json_encode function
+# BD is the base64_decode function
+# K is the encryption key
+# ^ is the xor operation
+# . is the function composition operator
+
+cookie = BE . X . J(defaultData)
+
+# given that json = J(defaultData)
+cookie = BE . X . json
+cookie = BE . X(json)
+
+# we know that X(json) is the xor operation with the K key, so:
+cookie = BE . (K ^ json)
+
+# we know that the opposite of BE is BD, so we can do the following:
+BD(cookie) = K ^ json
+
+# decoding the base64 of the cookie yields a binary, so let's call it bin_cookie
+bin_cookie = K ^ json
+
+# given the property that a ^ b ^ a = b, we conclude that:
+K = bin_cookie ^ json
+```
+
+so in reality to get the key we need to get `bin_cookie` and `json`.
+
+```php
+$cookie = "a cookie"; // get the cookie by running document.cookie in the JS console
+$defaultData = array("showpassword"=>"no", "bgcolor"=>"#ffffff");
+$json = json_encode($defaultData);
+$bin_cookie = base64_decode($cookie);
+```
+
+having all the elements for the decode, we can now get the key by doing
+`bin_cookie ^ json`
+
+
+```php
+// this is the xor_encrypt function modified to accept a key as an argument
+// instead of having it hardcoded
+function xor_encrypt($in, $key) {
+    $text = $in;
+    $outText = '';
+
+    // Iterate through each character
+    for($i=0;$i<strlen($text);$i++) {
+    $outText .= $text[$i] ^ $key[$i % strlen($key)];
+    }
+
+    return $outText;
+}
+
+$key = xor_encrypt($json, $bin_cookie);
+
+echo $key;
+```
+
+now you will notice the key has a pattern. something like `abcdabcdabcdabcd`.
+you may be tempted to assume this is the key but it isn't so. notice that the
+`xor_encrypt` function is designed to work with a message with of an arbitrary
+size. which means that the message to encrypt (`$in`) might be larger than the
+key.
+
+the function then repeats the key once it reaches the end. e.g:
+
+```bash
+# before encryption starts
+123456 ^ abc
+
+# step 1
+123456 ^ abc
+^        ^
+
+# step 2
+123456 ^ abc
+ ^        ^
+
+# step 3
+123456 ^ abc
+  ^        ^
+
+# once the xor'ing gets to 4, the code repeats the key
+# step 4
+123456 ^ abc
+   ^     ^
+```
+
+it achieves that by doing `$outText .= $text[$i] ^ $key[$i % strlen($key)];`
+
+the key part is the `$i % strlen($key)` bit.
+
+as a consequence you will get a large output but the key will actually be
+smaller. if the output is `abcdabcdabcdab`, the key is `abcd`.
+
+having the key, you can now set your own cookie.
+
+```php
+$key = 'the key you got';
+$targetData = array("showpassword"=>"yes", "bgcolor"=>"#ffffff");
+
+// this uses the different xor_encrypt function defined above
+$hackedCookie = base64_encode(xor_encrypt(json_encode($targetData), $key));
+echo $hackedCookie;
+```
+
+and you will get the changed cookie.
+
+so now you just need to do `document.cookie = "data=your-cookie"` and refresh.
+
+the password will be yours to take.
