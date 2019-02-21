@@ -277,3 +277,23 @@ and you will get the changed cookie.
 so now you just need to do `document.cookie = "data=your-cookie"` and refresh.
 
 the password will be yours to take.
+
+## natas12
+
+looking at the php source, we can see that it uploads the image but doesn't do
+any security checks.
+
+upload a `hack.php` file with the following contents:
+
+```php
+<?php system("cat /etc/natas_webpass/natas13") ?>
+```
+
+you'll then be able to open the newly uploaded file and notice that it is being
+interpreted at an image. at this point you would expect the browser to interpret
+it as a php script.
+
+when you inspect the form you will see that the filename has been pre-computed.
+we can change the name from `something.jpg` to `something.php` and re-upload
+`hack.php`. when we open the uploaded file the password will be available in
+plaintext.
