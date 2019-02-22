@@ -325,3 +325,34 @@ you can enter the following as the username: `natas15" #` (i would expect that
 input for password.
 
 the password for the next level should then be yours.
+
+## natas15
+
+in this level we again are able to perform SQL injection but we are unable to
+get any output back.
+
+it also seems to be impossible to do multiple queries, e.g:
+
+```sql
+natas16"; INSERT INTO users (username, password) VALUES 'myuser', '123'; #
+```
+
+we can do password checks, such as:
+
+```sql
+natas16" AND password LIKE BINARY "%"; #
+```
+
+this will check if the `natas16` user exists with the given password (where `%`
+is a wildcard, anything matches).
+
+we can then extract the form endpoint and do a script that checks serial
+combinations:
+
+we start with `a`, `b`, `c`, so on, checking if the returned webpage contains
+the "user exists" text. when we have found a match, we start searching for the
+next letter of the password, until we have matched all 32 characters (all
+passwords so far have 32 characters).
+
+the ruby script for this is in the `scripts/natas15.rb` file. you can run it,
+but you'll need to change line 99 to have the natas15 password.
