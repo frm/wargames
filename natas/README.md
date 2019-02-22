@@ -297,3 +297,31 @@ when you inspect the form you will see that the filename has been pre-computed.
 we can change the name from `something.jpg` to `something.php` and re-upload
 `hack.php`. when we open the uploaded file the password will be available in
 plaintext.
+
+## natas13
+
+this is pretty much similar to the previous one but the source code now reveals
+the site is doing filetype checks. if we try to upload the previous file, it
+will not work. we need to upload an image with embedded code.
+
+download a 1px image, open it in an editor and append the following to it:
+
+```php
+<?php system("cat /etc/natas_webpass/natas14") ?>
+```
+
+change the file extension in the form to `.php` so the browser interprets as php
+and finally upload the image. when you open the uploaded file, the password will
+be yours to take.
+
+## natas14
+
+this is a simple sql injection hack. if you look at the source code, you'll see
+that the sql string is build from the username and password request params
+without any type of scrubbing.
+
+you can enter the following as the username: `natas15" #` (i would expect that
+`natas15" --` would work as well but apparently no). it doesn't matter what you
+input for password.
+
+the password for the next level should then be yours.
