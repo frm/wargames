@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+if [ ! -x "$(command -v "expect")" ]; then
+  cat <<EOF
+[leviathan]: this script requires you to have expect.
+             please install and try again."
+EOF
+
+  exit 1
+fi
+
+get_password() {
+  cat 00_passwords.txt | \
+    grep "leviathan$1" | \
+    cut -d ':' -f 2 | \
+    sed 's/ //g'
+}
+
+level=$1
+password=$(get_password $level)
+
+if [[ -z $password ]]; then
+  cat <<EOF
+[leviathan]: password for that level hasn't been unlocked yet
+             please try again later
+             cheerio
+EOF
+  exit 1
+fi
+
+ssh_cmd="ssh leviathan$level@leviathan.labs.overthewire.org -p 2223"
+expect -c "spawn $ssh_cmd; expect password; send \"$password\n\"; interact"
